@@ -5,10 +5,11 @@
 //  Terminal Client
 // ================================================================
 
-// API base: injected by Vite from VITE_API_URL env var at build time.
-// For local dev this is empty (same origin via Vite proxy).
-// For production set VITE_API_URL=https://your-render-app.onrender.com
-var BACKEND = (typeof __API_URL__ !== 'undefined' && __API_URL__) ? __API_URL__ : '';
+// API base URL — injected into index.html by Vite at build time from VITE_API_URL.
+// Local dev: empty string → Vite proxy forwards /api/* to localhost:8080.
+// Production: full Render URL baked in by Vite.
+var BACKEND = (window.__TWINLOCK_API__ && window.__TWINLOCK_API__ !== '%VITE_API_URL%')
+    ? window.__TWINLOCK_API__ : '';
 var POLL_MS = 2500;
 var TYPE_DELAY = 40;
 

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>twin-lock</title>
+    <title>TwinLock — Cryptographic Node Terminal</title>
 
     <!-- Terminal CSS -->
     <link rel="stylesheet" href="/css/main.css" />
@@ -34,7 +34,8 @@
 
     <div id="root"></div>
 
-    <!-- Terminal JS -->
+    <!-- API config: VITE_API_URL is injected at build time by Vite -->
+    <script>window.__TWINLOCK_API__ = '%VITE_API_URL%';</script>
     <script src="/js/polyfills.js"></script>
     <script src="/js/main.js"></script>
 
