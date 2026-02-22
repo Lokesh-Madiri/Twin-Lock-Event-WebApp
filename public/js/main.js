@@ -174,8 +174,9 @@ function runBoot() {
         ["", ""],
         ["[AUTH] Awaiting authentication...", "#e09f14"],
         ["", ""],
-        ["  Usage  :  login &lt;teamId&gt; &lt;nodeId&gt; &lt;accessKey&gt;", "#555"],
-        ["  Example:  login ALPHA SYS-01 ALPHA-NODE1-2024", "#555"],
+        ["  register             — Register for the event (opens form)", "#00ccff"],
+        ["  login &lt;teamId&gt; &lt;nodeId&gt; &lt;accessKey&gt;  — Authenticate node", "#555"],
+        ["  Example: login TEAM01 SYS-01 A3F72B1C", "#555"],
         ["", ""]
     ];
     typeLines(lines, TYPE_DELAY, function () {
@@ -183,6 +184,8 @@ function runBoot() {
         setPrompt("twinlock@auth:~$");
         enableInput();
     });
+    // Dismiss the page loader as soon as boot text starts printing
+    if (typeof window.dismissLoader === "function") window.dismissLoader();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -212,6 +215,24 @@ function handleCommand(raw) {
 // ════════════════════════════════════════════════════════════════
 
 function phaseLogin(cmd, parts) {
+    var REGISTER_URL = "https://forms.gle/S4GWsANiDMtvWXVv5";
+
+    if (cmd === "register") {
+        br();
+        println("[SYS] \u2500\u2500 Event Registration \u2500\u2500", "#00ccff");
+        println("[SYS] Opening registration form...", "#00ccff");
+        print(
+            '[REG] Click to register: <a href="' + REGISTER_URL + '" target="_blank" ' +
+            'style="color:#00ff41;text-shadow:0 0 8px #00ff41;text-decoration:underline">' +
+            REGISTER_URL + '</a>'
+        );
+        br();
+        println("[SYS] After registering, use your team credentials to login.", "#555");
+        br();
+        window.open(REGISTER_URL, "_blank");
+        enableInput(); return;
+    }
+
     if (cmd === "login") {
         if (parts.length < 4) {
             println("[ERR] Usage: login <teamId> <nodeId> <accessKey>", "#ff3333");
@@ -239,6 +260,7 @@ function phaseLogin(cmd, parts) {
     } else if (cmd === "help") {
         br();
         println("[SYS] Available Commands:", "#00ccff");
+        println("  register                             — Register for the event", "#00ccff");
         println("  login <teamId> <nodeId> <accessKey>  — Authenticate node", "#555");
         println("  help                                 — Show this menu", "#555");
         println("  clear                                — Clear terminal", "#555");

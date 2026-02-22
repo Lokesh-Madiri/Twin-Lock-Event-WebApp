@@ -8,9 +8,126 @@
 
     <!-- Terminal CSS -->
     <link rel="stylesheet" href="/css/main.css" />
+
+    <style>
+        /* ── Page Loader ───────────────────────────────────────── */
+        #tl-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+
+        #tl-loader.hide {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader-logo {
+            font-size: clamp(22px, 5vw, 40px);
+            font-weight: bold;
+            letter-spacing: 0.35em;
+            color: #00ccff;
+            text-shadow: 0 0 20px #00ccff, 0 0 40px #0088aa;
+            animation: glitch 3s infinite;
+            margin-bottom: 32px;
+        }
+
+        @keyframes glitch {
+
+            0%,
+            95%,
+            100% {
+                text-shadow: 0 0 20px #00ccff, 0 0 40px #0088aa;
+                clip-path: none;
+            }
+
+            96% {
+                clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%);
+                text-shadow: -4px 0 #ff3333, 4px 0 #00ff41;
+            }
+
+            97% {
+                clip-path: polygon(0 60%, 100% 60%, 100% 75%, 0 75%);
+                text-shadow: 2px 0 #ff3333, -2px 0 #00ccff;
+            }
+
+            98% {
+                clip-path: none;
+                text-shadow: 0 0 20px #00ccff;
+            }
+        }
+
+        .loader-bar-wrap {
+            width: min(360px, 80vw);
+            height: 3px;
+            background: #111;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 18px;
+        }
+
+        .loader-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00ccff, #00ff41);
+            box-shadow: 0 0 10px #00ccff;
+            animation: fillBar 2.2s cubic-bezier(.4, 0, .2, 1) forwards;
+        }
+
+        @keyframes fillBar {
+            to {
+                width: 100%;
+            }
+        }
+
+        .loader-status {
+            font-size: 11px;
+            color: #444;
+            letter-spacing: 2px;
+            height: 16px;
+        }
+
+        .loader-scan {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ccff44, transparent);
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0%;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+    </style>
 </head>
 
 <body>
+
+    <!-- ── Page Loader ────────────────────────────────────────── -->
+    <div id="tl-loader">
+        <div class="loader-scan"></div>
+        <div class="loader-logo">TWINLOCK</div>
+        <div class="loader-bar-wrap">
+            <div class="loader-bar"></div>
+        </div>
+        <div class="loader-status" id="loader-msg">INITIALIZING...</div>
+    </div>
 
     <!-- STATIC TERMINAL -->
     <div id="sidenav">
@@ -36,6 +153,40 @@
 
     <!-- API config: VITE_API_URL is injected at build time by Vite -->
     <script>window.__TWINLOCK_API__ = '%VITE_API_URL%';</script>
+
+    <!-- Loader dismiss logic (runs before main.js so messages animate during load) -->
+    <script>
+        (function () {
+            var msgs = [
+                "LOADING CIPHER ENGINE...",
+                "ESTABLISHING CHANNEL...",
+                "VERIFYING NODE INTEGRITY...",
+                "SECURE CONNECTION ESTABLISHED."
+            ];
+            var el = document.getElementById("loader-msg");
+            var i = 0;
+            var iv = setInterval(function () {
+                if (!el) return;
+                el.textContent = msgs[Math.min(i++, msgs.length - 1)];
+                if (i >= msgs.length) clearInterval(iv);
+            }, 520);
+
+            // Dismiss after scripts load — called by main.js boot
+            window.dismissLoader = function () {
+                var loader = document.getElementById("tl-loader");
+                if (loader) {
+                    if (el) el.textContent = "NODE READY.";
+                    setTimeout(function () { loader.classList.add("hide"); }, 300);
+                }
+            };
+
+            // Fallback: auto-dismiss after 3s even if main.js is slow
+            window.addEventListener("load", function () {
+                setTimeout(function () { window.dismissLoader(); }, 3000);
+            });
+        })();
+    </script>
+
     <script src="/js/polyfills.js"></script>
     <script src="/js/main.js"></script>
 
