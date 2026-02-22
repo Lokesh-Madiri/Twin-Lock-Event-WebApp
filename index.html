@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>twin-lock</title>
+
+    <!-- Terminal CSS -->
+    <link rel="stylesheet" href="/css/main.css" />
+</head>
+
+<body>
+
+    <!-- STATIC TERMINAL -->
+    <div id="sidenav">
+        <button id="sidenavBtn">&#9776;</button>
+        <img id="profilePic" src="/img/avatar.png" />
+    </div>
+
+    <div id="container">
+        <div id="output"></div>
+
+        <div id="react-hook"></div>
+
+        <div id="input-line" class="input-line">
+            <div id="prompt" class="prompt-color"></div>
+            &nbsp;
+            <div>
+                <input type="text" id="cmdline" />
+            </div>
+        </div>
+    </div>
+
+    <div id="root"></div>
+
+    <!-- Terminal JS -->
+    <script src="/js/polyfills.js"></script>
+    <script src="/js/main.js"></script>
+
+    <!-- React -->
+    <script type="module" src="/src/main.jsx"></script>
+
+</body>
+
+</html>

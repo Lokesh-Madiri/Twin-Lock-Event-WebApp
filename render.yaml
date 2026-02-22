@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: twinlock-backend
+    runtime: java
+    plan: free
+    buildCommand: cd backend && mvn clean package -DskipTests
+    startCommand: java -jar backend/target/twinlock-backend-3.2.0.jar
+    healthCheckPath: /api/node/status
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SECRET_SALT
+        generateValue: false   # << FILL IN on Render dashboard
+        value: REPLACE_ME_WITH_STRONG_RANDOM_STRING
+      - key: ADMIN_KEY
+        generateValue: false   # << FILL IN on Render dashboard
+        value: REPLACE_ME_WITH_STRONG_ADMIN_KEY
+      - key: CORS_ORIGIN
+        value: https://your-vercel-app.vercel.app   # << update after Vercel deploy
+      - key: FORM_LINK_NODE1
+        value: https://forms.gle/REPLACEME_NODE1
+      - key: FORM_LINK_NODE2
+        value: https://forms.gle/REPLACEME_NODE2
+      - key: LOG_LEVEL
+        value: INFO

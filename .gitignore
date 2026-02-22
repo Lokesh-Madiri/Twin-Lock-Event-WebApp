@@ -1,0 +1,37 @@
+# ── Node / Vite ──────────────────────────────────────────────────
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+node_modules
+dist
+dist-ssr
+*.local
+
+# ── Environment / Secrets ────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.*.local
+# Never commit real secrets. Use Render/Vercel env var dashboards.
+
+# ── Java / Maven ─────────────────────────────────────────────────
+backend/target/
+*.class
+*.jar
+*.war
+!backend/.mvn/wrapper/maven-wrapper.jar
+backend/.mvn/wrapper/maven-wrapper.properties
+
+# ── IDE ──────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
