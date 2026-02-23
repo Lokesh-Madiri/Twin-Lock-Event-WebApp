@@ -1,27 +1,18 @@
 package com.twinlock.model;
 
-/**
- * In-memory session for one node.
- * Key: teamId + "_" + nodeId
- */
 public class NodeSession {
     private String teamId;
     private String nodeId;
     private boolean authenticated;
-    private int attempts; // attempts USED (not remaining)
+    private int currentLevel = 1; // 1=EASY 2=MEDIUM 3=HARD
+    private int levelAttempts = 0; // attempts used in THIS level (max 3)
     private boolean unlocked;
     private boolean permanentlyLocked;
 
     public NodeSession(String teamId, String nodeId) {
         this.teamId = teamId;
         this.nodeId = nodeId;
-        this.authenticated = false;
-        this.attempts = 0;
-        this.unlocked = false;
-        this.permanentlyLocked = false;
     }
-
-    // ── Getters / Setters ──────────────────────────────────────
 
     public String getTeamId() {
         return teamId;
@@ -39,16 +30,34 @@ public class NodeSession {
         this.authenticated = b;
     }
 
-    public int getAttempts() {
-        return attempts;
+    public int getCurrentLevel() {
+        return currentLevel;
     }
 
-    public void incrementAttempts() {
-        this.attempts++;
+    public void advanceLevel() {
+        this.currentLevel++;
+        this.levelAttempts = 0;
+    }
+
+    public int getLevelAttempts() {
+        return levelAttempts;
+    }
+
+    public void incrementLevelAttempts() {
+        this.levelAttempts++;
+    }
+
+    public int getLevelAttemptsRemaining() {
+        return Math.max(0, 3 - levelAttempts);
+    }
+
+    // kept for admin/compat
+    public int getAttempts() {
+        return levelAttempts;
     }
 
     public int getAttemptsRemaining() {
-        return Math.max(0, 3 - attempts);
+        return getLevelAttemptsRemaining();
     }
 
     public boolean isUnlocked() {

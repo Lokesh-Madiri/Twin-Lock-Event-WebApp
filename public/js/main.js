@@ -15,16 +15,17 @@ var TYPE_DELAY = 40;
 
 // ── Application State ────────────────────────────────────────────
 var S = {
-    phase: "BOOT",       // BOOT | LOGIN | WAITING | ACTIVE | UNLOCKED | LOCKED
+    phase: "BOOT",
     teamId: null,
     nodeId: null,
+    level: 1,               // 1=EASY  2=MEDIUM  3=HARD
     attemptsRemaining: 3,
     cipher: null,
     cipherType: null,
     hints: [],
-    hintCooldownUntil: 0,   // epoch ms — when hint command unlocks again
-    hintCount: 0,           // how many hints used this session
-    partnerUnlocked: false, // true once we receive partner unlock from poll
+    hintCooldownUntil: 0,
+    hintCount: 0,
+    partnerUnlocked: false,
     formLink: null,
     inputEnabled: false,
     timerInterval: null,
@@ -108,6 +109,7 @@ function buildHUD() {
         "font-family:monospace", "font-size:9.5pt", "flex-wrap:wrap"
     ].join(";");
     bar.innerHTML =
+        '<span id="hud-level" style="color:#e09f14;font-weight:bold;letter-spacing:1px">LVL —</span>' +
         '<span id="hud-team"  style="color:#555">TEAM: —</span>' +
         '<span id="hud-node"  style="color:#555">NODE: —</span>' +
         '<span id="hud-atts"  style="color:#555">ATTEMPTS: —</span>' +
@@ -118,9 +120,16 @@ function buildHUD() {
 }
 
 function updateHUD() {
+    var lvl = $id("hud-level");
     var t = $id("hud-team");
     var n = $id("hud-node");
     var a = $id("hud-atts");
+    var labels = ["EASY", "MEDIUM", "HARD"];
+    var colors = ["#00ff41", "#e09f14", "#ff3333"];
+    if (lvl && S.level) {
+        lvl.textContent = "LVL " + S.level + " — " + labels[S.level - 1];
+        lvl.style.color = colors[S.level - 1];
+    }
     if (t) t.textContent = S.teamId ? "TEAM: " + S.teamId : "TEAM: —";
     if (n) n.textContent = S.nodeId ? "NODE: " + S.nodeId : "NODE: —";
     if (a) a.textContent = (S.attemptsRemaining !== null)
@@ -368,10 +377,16 @@ function phaseActive(cmd, parts) {
         println("[SYS] Available Commands:", "#00ccff");
         println("  submit <keyword>-<checksum>  — Submit decrypted answer", "#555");
         println("  time                         — Check time remaining", "#555");
-        println("  hint                         — Request decryption hints", "#555");
+        println("  hint                         — Request a decryption hint (Level " + (S.level || 1) + "/3)", "#555");
         println("  status                       — Show node status", "#555");
         println("  help                         — Show this menu", "#555");
         println("  clear                        — Clear terminal", "#555");
+        br();
+        println("[SYS] ── Level Progression ──", "#00ccff");
+        println("  LEVEL 1 — EASY   : Warm-up cipher (team identifier)", "#00ff41");
+        println("  LEVEL 2 — MEDIUM : Intermediate (reveals key for Level 3)", "#e09f14");
+        println("  LEVEL 3 — HARD   : Final keyword — triggers UNLOCK", "#ff3333");
+        println("  3 attempts per level. Hints reset on level-up.", "#555");
         br(); enableInput();
     } else if (cmd === "clear") {
         clearOutput(); redisplayCipher();
@@ -432,15 +447,17 @@ function showHints() {
     var idx = S.hintCount;   // 0-based index of hint to show NOW
     var hintLines = groups[idx] || ["[HINT " + (idx + 1) + "] No hint available."];
 
-    // Apply cooldown BEFORE showing (30 seconds for testing, change to 5 * 60 * 1000 for production)
-    var HINT_COOLDOWN_MS = 30 * 1000;
+    // 5-minute cooldown between hints
+    var HINT_COOLDOWN_MS = 5 * 60 * 1000;
     S.hintCount++;
     S.hintCooldownUntil = Date.now() + HINT_COOLDOWN_MS;
 
+    var levelLabel = ["EASY", "MEDIUM", "HARD"][(S.level || 1) - 1];
+    var levelColor = ["#00ff41", "#e09f14", "#ff3333"][(S.level || 1) - 1];
     br();
-    println("[SYS] Hint " + S.hintCount + " of " + total + " \u2014 Authorized Release", "#e09f14");
-    println("[SYS] Cipher Type: " + (S.cipherType || "ENCRYPTED"), "#e09f14");
-    println("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500", "#333");
+    println("[SYS] Hint " + S.hintCount + " of " + total + " — Level " + (S.level || 1) + " (" + levelLabel + ") — Authorized Release", "#e09f14");
+    println("[SYS] Cipher Type: " + (S.cipherType || "ENCRYPTED"), levelColor);
+    println("──────────────────────────────────────────────────", "#333");
     hintLines.forEach(function (line) { println(line, "#e09f14"); });
 
     // Always append checksum concept with Hint 1
@@ -486,13 +503,10 @@ function redisplayCipher() {
 
 function doSubmit(payload) {
     println("[SYS] Transmitting payload to central authority...", "#00ccff");
-    apiPost("/api/node/submit", {
-        teamId: S.teamId,
-        nodeId: S.nodeId,
-        payload: payload
-    })
+    apiPost("/api/node/submit", { teamId: S.teamId, nodeId: S.nodeId, payload: payload })
         .then(function (d) {
             if (d.status === "UNLOCK") doUnlock(d);
+            else if (d.status === "LEVEL_UP") doLevelUp(d);
             else if (d.status === "LOCKED") doPermanentLock();
             else doFail(d);
         })
@@ -500,6 +514,47 @@ function doSubmit(payload) {
             println("[ERR] Transmission error. Central authority unreachable.", "#ff3333");
             enableInput();
         });
+}
+
+// Called when a level (1 or 2) is cleared — advance to next
+function doLevelUp(data) {
+    S.level = data.nextLevel;
+    S.cipher = data.cipher;
+    S.cipherType = data.cipherType;
+    S.hints = data.hints || [];
+    S.hintCount = 0;
+    S.hintCooldownUntil = 0;
+    S.attemptsRemaining = data.attemptsRemaining || 3;
+    updateHUD();
+
+    var levelName = ["EASY", "MEDIUM", "HARD"][S.level - 1];
+    var levelColor = ["#00ff41", "#e09f14", "#ff3333"][S.level - 1];
+
+    typeLines([
+        ["", ""],
+        ["╔══════════════════════════════════════════════════╗", levelColor],
+        ["║    LEVEL " + (S.level - 1) + " CLEARED — ADVANCING TO LEVEL " + S.level + "    ║", levelColor],
+        ["╚══════════════════════════════════════════════════╝", levelColor],
+        ["", ""],
+        ["[SYS] Difficulty: " + levelName, levelColor],
+        ["[SYS] Attempts reset — 3 attempts for this level.", "#555"],
+        ["", ""],
+        ["[SYS] New cipher stream received...", "#00ccff"],
+        ["[SYS] Cipher Type: " + S.cipherType, "#e09f14"],
+        ["──────────────────────────────────────────────────", "#333"]
+    ], TYPE_DELAY, function () {
+        // render multi-line cipher
+        (S.cipher || "").split("\n").forEach(function (line) {
+            print('<span style="color:#00ff41;font-size:1.05em;letter-spacing:0.15em;' +
+                'text-shadow:0 0 8px #00ff41;font-family:monospace">' + esc(line) + '</span>');
+        });
+        print('<span style="color:#333">──────────────────────────────────────────────────</span>');
+        br();
+        println("[SYS] Decode the cipher. Type 'hint' if you need help.", "#555");
+        println("[SYS] submit <keyword>-<checksum>", "#555");
+        br();
+        enableInput();
+    });
 }
 
 function doUnlock(data) {
@@ -584,6 +639,10 @@ function doFail(data) {
 
 function showEventStart(data) {
     clearOutput();
+    var levelNames = ["EASY", "MEDIUM", "HARD"];
+    var levelColors = ["#00ff41", "#e09f14", "#ff3333"];
+    var lvlLabel = levelNames[(S.level || 1) - 1];
+    var lvlColor = levelColors[(S.level || 1) - 1];
     typeLines([
         ["", ""],
         ["╔══════════════════════════════════════════════════╗", "#00ccff"],
@@ -592,6 +651,7 @@ function showEventStart(data) {
         ["", ""],
         ["[SYS] Decryption Window Opened.", "#00ccff"],
         ["[SYS] Time Remaining: " + formatTime(data.timeRemainingSeconds), "#00ccff"],
+        ["[SYS] ▸ Starting at: LEVEL " + (S.level || 1) + " — " + lvlLabel, lvlColor],
         ["", ""],
         ["[SYS] Receiving encrypted payload...", "#00ccff"],
         ["[SYS] Parsing fragments...", "#00ccff"],
@@ -666,6 +726,7 @@ function doPoll() {
                 S.cipher = d.cipher;
                 S.cipherType = d.cipherType || "ENCRYPTED";
                 S.hints = d.hints || [];
+                S.level = d.level || 1;
                 S.attemptsRemaining = d.attemptsRemaining;
                 updateHUD();
                 stopPolling();
@@ -685,9 +746,10 @@ function doPoll() {
                 S.partnerUnlocked = true;
                 showPartnerUnlockedAlert(d.partnerNodeId || "PARTNER");
             }
-            // Sync attempts count
+            // Sync attempts + level count
             if (typeof d.attemptsRemaining !== "undefined") {
                 S.attemptsRemaining = d.attemptsRemaining;
+                if (d.level) S.level = d.level;
                 updateHUD();
             }
             // Keep hints updated
